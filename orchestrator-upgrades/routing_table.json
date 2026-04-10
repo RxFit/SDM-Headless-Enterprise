@@ -1,0 +1,77 @@
+{
+  "version": "1.0",
+  "description": "Deterministic routing table for the Sovereign Domain Mesh. Unknown events fall through to AI.",
+  "routes": {
+    "billing/PAYMENT_FAILED": {
+      "actions": [
+        { "type": "DISPATCH", "target": "crm-node", "command": "FLAG_CLIENT", "topic": "crm-commands" },
+        { "type": "ALERT", "level": "WARNING" }
+      ]
+    },
+    "billing/SUBSCRIPTION_CANCELLED": {
+      "actions": [
+        { "type": "DISPATCH", "target": "crm-node", "command": "ARCHIVE_CLIENT", "topic": "crm-commands" },
+        { "type": "ALERT", "level": "WARNING" }
+      ]
+    },
+    "billing/PAYMENT_SUCCEEDED": {
+      "actions": [
+        { "type": "LOG_ONLY" }
+      ]
+    },
+    "infrastructure/NODE_ALIVE": {
+      "actions": [
+        { "type": "SILENT" }
+      ]
+    },
+    "infrastructure/NODE_BOOTED": {
+      "actions": [
+        { "type": "SILENT" }
+      ]
+    },
+    "infrastructure/NODE_SHUTDOWN": {
+      "actions": [
+        { "type": "ALERT", "level": "INFO" }
+      ]
+    },
+    "infrastructure/TUNNEL_DOWN": {
+      "actions": [
+        { "type": "DISPATCH", "target": "jade-commands", "command": "RESTART_TUNNEL", "topic": "jade-commands" },
+        { "type": "ALERT", "level": "CRITICAL" }
+      ]
+    },
+    "infrastructure/NODE_OFFLINE": {
+      "actions": [
+        { "type": "DISPATCH", "target": "jade-commands", "command": "RESTART_NODE", "topic": "jade-commands" },
+        { "type": "ALERT", "level": "WARNING" }
+      ]
+    },
+    "seo/RANKING_DROP": {
+      "actions": [
+        { "type": "ALERT", "level": "WARNING" }
+      ]
+    },
+    "security/BREACH_DETECTED": {
+      "actions": [
+        { "type": "ALERT", "level": "CRITICAL" }
+      ]
+    },
+    "wellness/LOW_CALORIE_LOG": {
+      "actions": [
+        { "type": "ALERT", "level": "WARNING" },
+        { "type": "DISPATCH", "target": "crm-node", "command": "ENRICH_CLIENT", "topic": "crm-commands" }
+      ]
+    },
+    "wellness/MISSED_THREE_DAYS": {
+      "actions": [
+        { "type": "DISPATCH", "target": "crm-node", "command": "FLAG_CLIENT", "topic": "crm-commands" },
+        { "type": "ALERT", "level": "WARNING" }
+      ]
+    },
+    "wellness/GOAL_ACHIEVED": {
+      "actions": [
+        { "type": "SILENT" }
+      ]
+    }
+  }
+}

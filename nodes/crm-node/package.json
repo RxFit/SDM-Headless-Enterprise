@@ -1,0 +1,21 @@
+{
+  "name": "anc-mcp-core",
+  "version": "1.0.0",
+  "description": "Universal boilerplate template for Sovereign Domain Mesh worker nodes. Clone this to create new ANC-MCP nodes.",
+  "main": "node.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node node.js",
+    "dispatcher": "node outbox_dispatcher.js",
+    "test": "node test_node.js --with-dispatch",
+    "health": "node -e \"const h = require('./lib/heartbeat'); h.sendOnce().then(() => process.exit(0))\""
+  },
+  "dependencies": {
+    "@google-cloud/pubsub": "^4.9.0",
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.1",
+    "express": "^5.2.1",
+    "googleapis": "^171.4.0",
+    "pg": "^8.20.0"
+  }
+}

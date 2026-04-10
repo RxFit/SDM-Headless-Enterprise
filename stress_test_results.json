@@ -1,0 +1,51 @@
+{
+  "timestamp": "2026-03-28T19:13:57.449Z",
+  "killTargets": [
+    "stripe-node",
+    "crm-node",
+    "wellness-node"
+  ],
+  "killResults": {
+    "stripe-node": {
+      "killed": true,
+      "pid": 43004,
+      "killTime": 1774725220776
+    },
+    "crm-node": {
+      "killed": true,
+      "pid": 27348,
+      "killTime": 1774725221101
+    },
+    "wellness-node": {
+      "killed": true,
+      "pid": 20372,
+      "killTime": 1774725221437
+    }
+  },
+  "recoveryResults": {
+    "stripe-node": {
+      "recovered": true,
+      "newPid": 2840,
+      "restarts": 6,
+      "recoveryTimeMs": 16670
+    },
+    "crm-node": {
+      "recovered": true,
+      "newPid": 31672,
+      "restarts": 3,
+      "recoveryTimeMs": 16345
+    },
+    "wellness-node": {
+      "recovered": true,
+      "newPid": 53476,
+      "restarts": 3,
+      "recoveryTimeMs": 16009
+    }
+  },
+  "ticketsBefore": 0,
+  "ticketsAfter": 0,
+  "newTickets": 0,
+  "allRecovered": true,
+  "allSurvivorsStable": true,
+  "meshVerdict": "BULLETPROOF"
+}

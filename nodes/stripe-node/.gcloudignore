@@ -1,0 +1,4 @@
+# Override .gitignore for Cloud Build — we NEED .env baked into the image
+node_modules/
+gcp-sa-key.json
+*.log
