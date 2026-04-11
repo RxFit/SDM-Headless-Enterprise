@@ -180,3 +180,61 @@
 3. Verify via HTTP probe that heartbeat endpoint still responds correctly after deploy.
 4. For pubsub-bridge: use Cloud Run MCP tool or gcloud to deploy and set env vars.
 
+### Execution: Priority 1A — Concierge Deployment
+
+**Commit:** `daabf6f` (merge commit after resolving sdmSilentDetector.ts conflict with remote).
+
+Files modified in RxFit-Concierge:
+- `shared/sdmSchema.ts` → 9-column webhookHealth (H1)
+- `server/sdmSchemaGuard.ts` → 9-col DDL, 9-col EXPECTED_TABLES, Phase 3 phantom purge (H1+L2)
+- `server/orchestrator/telemetryRoutes.ts` → Drizzle heartbeat upsert (H3)
+- `server/sdmSilentDetector.ts` → NEW: self-monitoring with 3-strike failover (H4)
+- `server/index.ts` → Wired silent detector start after SchemaGuard boot
+
+**Merge Notes:** Remote had newer commits (Replit publishes directly). `sdmSilentDetector.ts` had both-added conflict — resolved keeping our Sprint 1 version (H4 self-monitoring). All other files merged cleanly.
+
+**Push:** `499e453..daabf6f main -> main` to `https://github.com/RxFit/RxFit-Concierge.git` ✅
+
+### Execution: Priority 1B — pubsub-bridge Cloud Run
+
+**First deploy attempt:** FAILED — used `--set-env-vars` (destructive) with only `NODE_NAME`. This wiped all existing env vars. Container exited with `[BRIDGE] FATAL: SDM_INTERNAL_KEY environment variable is required.`
+
+**Lesson:** `--set-env-vars` REPLACES all. `--update-env-vars` APPENDS. After the first bad deploy wiped env state, even `--update-env-vars` couldn't recover (inherited empty state). Required full `--set-env-vars` with ALL env vars restored from revision 00006.
+
+**Successful deploy:** Revision `sdm-pubsub-bridge-00009` — all env vars restored, heartbeat firing:
+```
+[BRIDGE] SDM Pub/Sub Bridge listening on port 8080
+[HEARTBEAT] sdm-pubsub-bridge — every 30s | HTTP→CC: YES
+[HEARTBEAT] HTTP heartbeat recovered after 1 failures
+```
+
+### Execution: Priority 3 — Express 5 Upgrade (M1)
+
+**Changes:** `package.json` express version `^4.18.2` → `^5.0.0`
+**Compatibility check:** No breaking API usage found. pubsub-bridge only uses `express()`, `app.use()`, `app.get()`, `app.post()`, `app.listen()`, `res.json()`, `res.status()` — all unchanged in Express 5.
+**Deploy:** Revision `sdm-pubsub-bridge-00010-79h` — `200 OK` on `/health` ✅
+
+### Execution: Priority 4 — SA1 Git Security Cleanup
+
+**Finding:** `gcp-sa-key.json` files are NOT tracked in git in EITHER repo. `git ls-files --cached` returned empty for both SDM and Concierge repos. `.gitignore` files are correctly covering them. **SA1 is already resolved — no action needed.**
+
+### Hostile Auditor — Sprint 2
+
+**Weaknesses Identified:**
+
+1. **Replit deploy not triggered.** We pushed to GitHub but Replit requires a manual "Deploy" click or a deployment trigger workflow. The Sprint 1 Concierge code changes (H1, H3, H4, L2 in the Concierge) won't be active until Replit pulls from GitHub and redeploys. **Status: PENDING manual deploy.**
+
+2. **pubsub-bridge env var wipe incident.** The `--set-env-vars` vs `--update-env-vars` footgun demonstrates that Cloud Run deploy commands need explicit defensive patterns. Future deploys should always use `--update-env-vars` and verify env state post-deploy.
+
+3. **sdmSilentDetector.ts merge conflict.** The remote Replit had a Phase 2 version of this file. Our Phase 3/H4 version (with self-monitoring) overwrote it. If the Replit version had changes not in our version (unlikely, but possible), those would be lost.
+
+4. **M2 (GOOGLE_CHAT_WEBHOOK_URL) still unset.** The silent detector and self-monitoring alerts remain muted. This is the loudest gap — the entire monitoring pipeline produces zero proactive notifications.
+
+**Edge Cases:**
+- pubsub-bridge heartbeat fires on cold start, but Cloud Run scales to zero when idle. After ~15 min of no Pub/Sub pushes, the container shuts down and the silent detector correctly marks it SILENT. This is **expected behavior** for an event-driven service.
+
+**Breaking Points:**
+- If the Concierge Replit is restarted/redeployed and encounters a TypeScript compile error due to the new sdmSilentDetector.ts imports, the entire app would fail to boot. The dynamic import pattern (`import("./sdmSilentDetector")`) with `.catch()` mitigates this — a detector failure won't take down the app.
+
+**Verdict: CONDITIONAL PASS** — All code changes and deployments verified. Concierge deploy pending Replit sync. M2 (webhook URL) remains the critical gap for full monitoring activation.
+
