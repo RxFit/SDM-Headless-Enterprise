@@ -1,4 +1,5 @@
 const express = require('express');
+const { startHeartbeat } = require('./lib/heartbeat');
 
 const app = express();
 app.use(express.json());
@@ -62,4 +63,7 @@ app.post('/', async (req, res) => {
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`[BRIDGE] SDM Pub/Sub Bridge listening on port ${PORT}`);
+  // H2: Start heartbeat beacon — makes this node visible to the SDM dashboard
+  startHeartbeat();
 });
+
