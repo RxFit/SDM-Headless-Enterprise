@@ -1,0 +1,35 @@
+{
+  "name": "sdm-headless-enterprise",
+  "version": "1.0.0",
+  "description": "SDM Headless Enterprise — Source of Truth for autonomous enterprise operations",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "tsx watch server/index.ts",
+    "dev:client": "cd client && npx vite --host",
+    "build:client": "cd client && npx vite build",
+    "build": "npm run build:client && tsc -p tsconfig.server.json",
+    "start": "node dist/server/index.js",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "node-cron": "^3.0.3",
+    "uuid": "^11.1.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.0",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.5.14",
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

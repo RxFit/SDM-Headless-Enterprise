@@ -1,0 +1,200 @@
+[
+  {
+    "id": "t-drive-1",
+    "node_id": "drive",
+    "title": "Audit Master Client List schema",
+    "status": "pending",
+    "priority": "medium",
+    "assignee": "Danny",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-drive-2",
+    "node_id": "drive",
+    "title": "Sync billing rates to Sheets",
+    "status": "in-progress",
+    "priority": "high",
+    "assignee": "JADE",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-gh-1",
+    "node_id": "github",
+    "title": "Merge Jules audit PR backlog",
+    "status": "pending",
+    "priority": "medium",
+    "assignee": "Antigravity",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-exec-1",
+    "node_id": "exec",
+    "title": "Review weekly SEO audit results",
+    "status": "pending",
+    "priority": "high",
+    "assignee": "Danny",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-exec-2",
+    "node_id": "exec",
+    "title": "Finalize trainer onboarding SOP",
+    "status": "pending",
+    "priority": "medium",
+    "assignee": "Korab",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-tw-1",
+    "node_id": "twilio",
+    "title": "Migrate to named tunnel (jade.rxfit.co)",
+    "status": "in-progress",
+    "priority": "critical",
+    "assignee": "Danny",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-tw-2",
+    "node_id": "twilio",
+    "title": "Stabilize webhook auto-heal script",
+    "status": "in-progress",
+    "priority": "high",
+    "assignee": "Antigravity",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-cc-1",
+    "node_id": "cc",
+    "title": "Hydrate staff dashboard with live touchpoint data",
+    "status": "in-progress",
+    "priority": "high",
+    "assignee": "Antigravity",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-cc-2",
+    "node_id": "cc",
+    "title": "Implement social engagement layer (likes/comments)",
+    "status": "pending",
+    "priority": "medium",
+    "assignee": "Antigravity",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-cc-3",
+    "node_id": "cc",
+    "title": "PDF generation for clinical longevity dossiers",
+    "status": "pending",
+    "priority": "medium",
+    "assignee": "Antigravity",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-jade-1",
+    "node_id": "jade",
+    "title": "Fix seo_action_blogger job handler imports",
+    "status": "pending",
+    "priority": "high",
+    "assignee": "Danny",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-jade-2",
+    "node_id": "jade",
+    "title": "Fix seo_weekly_audit payload handling",
+    "status": "pending",
+    "priority": "high",
+    "assignee": "Danny",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-jade-3",
+    "node_id": "jade",
+    "title": "Resolve rxfit.co domain transfer for named tunnel",
+    "status": "blocked",
+    "priority": "critical",
+    "assignee": "Danny",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-ag-1",
+    "node_id": "antigravity",
+    "title": "Harden Agent Brock orchestration",
+    "status": "in-progress",
+    "priority": "high",
+    "assignee": "Antigravity",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-bill-1",
+    "node_id": "billing-engine",
+    "title": "Complete billing tri-pillar integration",
+    "status": "pending",
+    "priority": "high",
+    "assignee": "Danny",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-seo-1",
+    "node_id": "seo",
+    "title": "Run weekly E-E-A-T audit",
+    "status": "pending",
+    "priority": "medium",
+    "assignee": "JADE",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "t-osc-1",
+    "node_id": "oscar",
+    "title": "Inject SEO-enriched data into CRM sheet",
+    "status": "pending",
+    "priority": "medium",
+    "assignee": "JADE",
+    "source": "manual",
+    "created_at": "2026-04-14T00:00:00Z",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  {
+    "id": "5d1dec90-409c-4710-8789-a682c57e09be",
+    "node_id": "jade",
+    "title": "Trejo Protocol Verification",
+    "status": "pending",
+    "priority": "critical",
+    "source": "agent",
+    "agent_id": "antigravity",
+    "created_at": "2026-04-14T23:36:56.466Z",
+    "updated_at": "2026-04-14T23:36:56.466Z"
+  }
+]
