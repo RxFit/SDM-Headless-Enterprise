@@ -24,6 +24,8 @@ import { createEdgeRoutes } from './routes/edges.js';
 import { createHistoryRoutes } from './routes/history.js';
 import { createHealthRoutes } from './routes/health.js';
 import { createAgentRoutes } from './routes/agents.js';
+import { initSheetSync } from './lib/sheetSync.js';
+import { initAutoTaskEngine } from './lib/autoTaskRules.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -54,6 +56,19 @@ const startTime = new Date();
 db.on('change', () => {
   git.recordChange();
 });
+
+// Auto-task rule engine (config-driven)
+const autoTaskEngine = initAutoTaskEngine(db, wss);
+
+// Sheet sync engine (optional — requires GOOGLE_SHEET_ID)
+const SHEET_ID = process.env.GOOGLE_SHEET_ID;
+const SHEET_CREDS = process.env.GOOGLE_CREDENTIALS_PATH || join(ROOT, 'credentials.json');
+const SHEET_INTERVAL = parseInt(process.env.SHEET_SYNC_INTERVAL_MS || '60000', 10);
+const sheetSync = SHEET_ID ? initSheetSync(db, wss, {
+  spreadsheet_id: SHEET_ID,
+  credentials_path: SHEET_CREDS,
+  sync_interval_ms: SHEET_INTERVAL,
+}) : null;
 
 // ─────────────────────────────────────────────────────────
 // Express App
@@ -117,7 +132,29 @@ async function boot() {
     git.start();
     console.log('[server] ✓ Git sync started');
 
-    // 4. Start HTTP server
+    // 4. Load auto-task rules from config
+    try {
+      const config = db.getConfig();
+      autoTaskEngine.loadRules(config);
+      console.log('[server] ✓ Auto-task rules loaded');
+    } catch (e) {
+      console.warn('[server] Auto-task rules not loaded:', e);
+    }
+
+    // 5. Start sheet sync (if configured)
+    if (sheetSync) {
+      try {
+        await sheetSync.initialize();
+        sheetSync.start();
+        console.log('[server] ✓ Google Sheet sync started');
+      } catch (e) {
+        console.warn('[server] Sheet sync failed to init (check GOOGLE_SHEET_ID + credentials):', e);
+      }
+    } else {
+      console.log('[server] Google Sheet sync: DISABLED (no GOOGLE_SHEET_ID)');
+    }
+
+    // 6. Start HTTP server
     server.listen(PORT, '0.0.0.0', () => {
       console.log('');
       console.log('╔══════════════════════════════════════════════════╗');

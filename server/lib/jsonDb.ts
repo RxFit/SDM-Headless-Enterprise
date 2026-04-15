@@ -124,6 +124,7 @@ export class JsonDb extends EventEmitter {
     }
 
     this.initialized = true;
+    await this.loadConfig();
     console.log(`[jsonDb] Initialized with ${collections.map(c => `${c}:${this.cache.get(c)?.length || 0}`).join(', ')}`);
   }
 
@@ -148,9 +149,34 @@ export class JsonDb extends EventEmitter {
     return (items as T[]).filter(predicate);
   }
 
-  // ─────────────────────────────────────────────────────────
-  // WRITE Operations (mutex-protected)
-  // ─────────────────────────────────────────────────────────
+  /** Read data/config.json (not a collection — direct file read with in-memory cache) */
+  getConfig(): Record<string, unknown> {
+    const raw = this._configCache;
+    if (raw) return raw;
+    // If not loaded yet, return empty (will be populated during initialize via loadConfig)
+    return {};
+  }
+
+  private _configCache: Record<string, unknown> | null = null;
+
+  async loadConfig(): Promise<void> {
+    const { readFile: rf } = await import('node:fs/promises');
+    const { existsSync: es } = await import('node:fs');
+    const { join: j } = await import('node:path');
+    const configPath = j(this.dataDir, 'config.json');
+    if (es(configPath)) {
+      try {
+        const raw = await rf(configPath, 'utf-8');
+        this._configCache = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        this._configCache = {};
+      }
+    } else {
+      this._configCache = {};
+    }
+  }
+
+
 
   async insert<T extends Identifiable>(collection: CollectionName, item: T): Promise<T> {
     const mutex = this.mutexes.get(collection)!;

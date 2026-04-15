@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { RxNodeData, TaskItem, TaskPriority } from './types';
+import type { RxNodeData, TaskItem, TaskPriority, EnterpriseTask } from './types';
 import { statusColors, variantColors } from './types';
+import { TaskDelegation } from './components/TaskDelegation';
+import { TaskHistory } from './components/TaskHistory';
+import { TaskDependencies } from './components/TaskDependencies';
 import {
   X,
   ExternalLink,
@@ -13,12 +16,16 @@ import {
   Trash2,
   ChevronDown,
   Cloud,
+  GitBranch,
+  History,
+  Share2,
 } from 'lucide-react';
 
 interface DetailPanelProps {
   nodeId: string | null;
   data: RxNodeData | null;
   tasks: TaskItem[];
+  allTasks?: EnterpriseTask[];
   onClose: () => void;
   onTaskToggle: (nodeId: string, taskId: string) => void;
   onTaskAdd: (nodeId: string, title: string, priority: TaskPriority, assignee?: string) => void;
@@ -36,8 +43,14 @@ const statusIcons: Record<string, typeof Circle> = {
   pending: Circle,
   'in-progress': Clock,
   done: CheckCircle2,
+  completed: CheckCircle2,
   blocked: AlertTriangle,
+  deferred: Clock,
+  review: Circle,
+  cancelled: X,
 };
+
+type PanelTab = 'tasks' | 'history' | 'dependencies';
 
 const priorityOptions: TaskPriority[] = ['critical', 'high', 'medium', 'low'];
 
@@ -45,6 +58,7 @@ export default function DetailPanel({
   nodeId,
   data,
   tasks,
+  allTasks = [],
   onClose,
   onTaskToggle,
   onTaskAdd,
@@ -56,6 +70,8 @@ export default function DetailPanel({
   const [newPriority, setNewPriority] = useState<TaskPriority>('medium');
   const [newAssignee, setNewAssignee] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState<PanelTab>('tasks');
+  const [delegatingTask, setDelegatingTask] = useState<EnterpriseTask | null>(null);
 
   // Close on Escape key
   useEffect(() => {
@@ -124,7 +140,17 @@ export default function DetailPanel({
   const pendingCount = tasks.filter((t) => t.status !== 'done').length;
   const doneCount = tasks.filter((t) => t.status === 'done').length;
 
+  // Find EnterpriseTask objects matching this panel's tasks for delegation/deps
+  const enterpriseTasks = allTasks.filter(t => t.node_id === nodeId);
+
   return (
+    <>
+    {delegatingTask && (
+      <TaskDelegation
+        task={delegatingTask}
+        onClose={() => setDelegatingTask(null)}
+      />
+    )}
     <div className="detail-overlay" onClick={handleOverlayClick} role="dialog" aria-modal="true" aria-label={`Details for ${data.label}`}>
       <div className="detail-panel" ref={panelRef}>
         {/* Accent bar */}
@@ -137,9 +163,9 @@ export default function DetailPanel({
             <div className="detail-panel-meta">
               <span
                 className="detail-panel-status-chip"
-                style={{ background: `${statusColors[status]}22`, color: statusColors[status] }}
+                style={{ background: `${statusColors[status as keyof typeof statusColors] ?? '#64748b'}22`, color: statusColors[status as keyof typeof statusColors] ?? '#64748b' }}
               >
-                <span className="detail-status-dot" style={{ background: statusColors[status] }} />
+                <span className="detail-status-dot" style={{ background: statusColors[status as keyof typeof statusColors] ?? '#64748b' }} />
                 {status}
               </span>
               <span className="detail-panel-variant-chip" style={{ background: `${accentColor}22`, color: accentColor }}>
@@ -164,8 +190,43 @@ export default function DetailPanel({
           </a>
         )}
 
-        {/* Task list */}
-        <div className="detail-panel-tasks">
+        {/* Tabs */}
+        <div className="detail-tabs">
+          <button className={`detail-tab ${activeTab === 'tasks' ? 'active' : ''}`} onClick={() => setActiveTab('tasks')}>
+            <CheckCircle2 size={13} /> Tasks ({tasks.length})
+          </button>
+          <button className={`detail-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
+            <History size={13} /> History
+          </button>
+          <button className={`detail-tab ${activeTab === 'dependencies' ? 'active' : ''}`} onClick={() => setActiveTab('dependencies')}>
+            <GitBranch size={13} /> Deps
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'history' && nodeId && (
+          <div className="detail-panel-tasks">
+            {tasks.map(t => (
+              <TaskHistory key={t.id} taskId={t.id} />
+            ))}
+            {tasks.length === 0 && <div className="detail-panel-empty">No tasks to show history for.</div>}
+          </div>
+        )}
+
+        {activeTab === 'dependencies' && (
+          <div className="detail-panel-tasks">
+            {enterpriseTasks.map(t => (
+              <div key={t.id} style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{t.title}</div>
+                <TaskDependencies task={t} allTasks={allTasks} />
+              </div>
+            ))}
+            {enterpriseTasks.length === 0 && <div className="detail-panel-empty">No tasks for dependency view.</div>}
+          </div>
+        )}
+
+        {/* Task list (default tab) */}
+        {activeTab === 'tasks' && <div className="detail-panel-tasks">
           <div className="detail-panel-tasks-header">
             <span>Tasks</span>
             <div className="detail-tasks-header-right">
@@ -235,6 +296,19 @@ export default function DetailPanel({
                         <Cloud size={13} />
                       </span>
                     )}
+                    {/* Delegate button for API tasks */}
+                    {(() => {
+                      const et = allTasks.find(t => t.id === task.id);
+                      return et ? (
+                        <button
+                          className="detail-task-delegate"
+                          onClick={() => setDelegatingTask(et)}
+                          title="Delegate task"
+                        >
+                          <Share2 size={13} />
+                        </button>
+                      ) : null;
+                    })()}
                   </li>
                 );
               })}
@@ -300,8 +374,9 @@ export default function DetailPanel({
               </div>
             </div>
           )}
-        </div>
+        </div>}
       </div>
     </div>
+    </>
   );
 }
