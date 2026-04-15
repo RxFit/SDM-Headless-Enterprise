@@ -1,0 +1,7 @@
+tunnel: d41f8ac1-REPLACE-WITH-REAL-ID
+credentials-file: /etc/cloudflared/d41f8ac1-REPLACE-WITH-REAL-ID.json
+
+ingress:
+  - hostname: ops.rxfit.ai
+    service: http://sdm-enterprise:8090
+  - service: http_status:404

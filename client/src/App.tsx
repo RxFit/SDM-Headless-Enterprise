@@ -148,10 +148,29 @@ export default function App() {
   const getAggregateStats = useCallback(() => {
     const total = tasks.length;
     const done = tasks.filter(t => t.status === 'completed').length;
+    const pending = tasks.filter(t => t.status === 'pending').length;
     const inProgress = tasks.filter(t => t.status === 'in-progress').length;
     const blocked = tasks.filter(t => t.status === 'blocked').length;
-    return { total, done, inProgress, blocked, completion: total > 0 ? Math.round((done / total) * 100) : 0 };
-  }, [tasks]);
+    const critical = tasks.filter(t => t.priority === 'critical').length;
+    const byVariant: Record<string, { total: number; done: number }> = {};
+    const byAssignee: Record<string, { total: number; done: number }> = {};
+    tasks.forEach(t => {
+      const v = (t as any).variant || 'general';
+      if (!byVariant[v]) byVariant[v] = { total: 0, done: 0 };
+      byVariant[v].total++;
+      if (t.status === 'completed') byVariant[v].done++;
+      const a = t.assignee || 'unassigned';
+      if (!byAssignee[a]) byAssignee[a] = { total: 0, done: 0 };
+      byAssignee[a].total++;
+      if (t.status === 'completed') byAssignee[a].done++;
+    });
+    return {
+      tasks: { total, done, pending, inProgress, blocked, critical },
+      systems: { total: nodes.length, operational: nodes.filter(n => (n.data as any).status === 'healthy').length, degraded: nodes.filter(n => (n.data as any).status === 'degraded').length, down: nodes.filter(n => (n.data as any).status === 'down').length, unknown: nodes.filter(n => !(n.data as any).status || (n.data as any).status === 'unknown').length },
+      byVariant,
+      byAssignee,
+    };
+  }, [tasks, nodes]);
 
   // Task add from detail panel
   const onTaskAdd = useCallback(
@@ -234,10 +253,7 @@ export default function App() {
                 id: t.id, title: t.title, status: t.status === 'completed' ? 'done' : t.status,
                 priority: t.priority, assignee: t.assignee, source: t.source,
               }))}
-              getAggregateStats={() => {
-                const s = getAggregateStats();
-                return { total: s.total, done: s.done, completionPct: s.completion };
-              }}
+              getAggregateStats={getAggregateStats}
               syncStatus={wsConnected ? 'synced' : 'disconnected'}
               lastSync={null}
               syncTaskCount={tasks.length}
@@ -314,10 +330,7 @@ export default function App() {
           status: t.status === 'completed' ? 'done' : t.status as 'pending' | 'in-progress' | 'done' | 'blocked',
           priority: t.priority, assignee: t.assignee, source: t.source,
         }))}
-        getAggregateStats={() => {
-          const s = getAggregateStats();
-          return { total: s.total, done: s.done, completionPct: s.completion };
-        }}
+        getAggregateStats={getAggregateStats}
         healthData={null}
         isOpen={showHealth}
         onClose={() => setShowHealth(false)}

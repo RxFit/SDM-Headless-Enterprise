@@ -2,10 +2,7 @@ node_modules
 client/node_modules
 dist
 client/dist
+.env
 .git
-.gitignore
-*.md
-.env.local
-.env.*.local
-.vscode
-.idea
+*.log
+data/archive/*

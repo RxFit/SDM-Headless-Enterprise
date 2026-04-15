@@ -82,7 +82,7 @@ export function TaskHistory({ taskId }: TaskHistoryProps) {
             <div className="timeline-content">
               <div className="timeline-action">{entry.action.replace(/_/g, ' ')}</div>
               {entry.actor && <div className="timeline-actor">by {entry.actor}</div>}
-              {entry.old_value && entry.new_value && (
+              {!!(entry.old_value && entry.new_value) && (
                 <div className="timeline-diff">
                   <span className="val-old">{String(entry.old_value)}</span>
                   <span className="val-arrow">→</span>

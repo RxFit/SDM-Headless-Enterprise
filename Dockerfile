@@ -59,8 +59,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 
 EXPOSE 8090
 
-# Run as non-root for security
-RUN addgroup -g 1001 -S sdm && adduser -S sdm -u 1001
-USER sdm
+# Data directory permissions (WOLF-002: volume mount needs write access)
+RUN mkdir -p /app/data/archive && chmod -R 777 /app/data
 
 CMD ["node", "dist/server/index.js"]

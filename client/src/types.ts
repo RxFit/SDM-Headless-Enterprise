@@ -8,7 +8,7 @@ export type NodeVariant = 'core' | 'data' | 'agent' | 'comms' | 'finance' | 'tea
 export type TaskPriority = 'critical' | 'high' | 'medium' | 'low';
 
 // Task status (legacy panel)
-export type TaskStatus = 'pending' | 'in-progress' | 'done' | 'blocked';
+export type TaskStatus = 'pending' | 'in-progress' | 'done' | 'blocked' | 'deferred' | 'review' | 'cancelled' | 'completed';
 
 // Individual task item (legacy panel compatibility)
 export interface TaskItem {

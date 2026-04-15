@@ -1,6 +1,7 @@
 # ══════════════════════════════════════════════════════════════
-# SDM Headless Enterprise — Docker Compose
-# TASK_H02: Production deployment configuration
+# SDM Headless Enterprise — Docker Compose (TASK_H02)
+# Full-stack: Express API + React SPA + Cloudflare Tunnel
+# WOLF-002: Named volume ensures JSON DB persists across rebuilds
 # ══════════════════════════════════════════════════════════════
 
 services:
@@ -10,34 +11,58 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8095:8095"
+      - "8095:8090"
     environment:
       - NODE_ENV=production
-      - PORT=8095
+      - PORT=8090
       - SDM_API_KEY=${SDM_API_KEY:-sdm-enterprise-key-2026}
-      - GIT_AUTO_SYNC=false
+      - SDM_API_URL=${SDM_API_URL:-https://ops.rxfit.ai}
+      - GIT_AUTO_SYNC=${GIT_AUTO_SYNC:-false}
+      - GIT_REMOTE_URL=${GIT_REMOTE_URL:-}
       - GOOGLE_SHEET_ID=${GOOGLE_SHEET_ID:-}
       - GOOGLE_CREDENTIALS_PATH=${GOOGLE_CREDENTIALS_PATH:-}
+      - CONCIERGE_API_URL=${CONCIERGE_API_URL:-}
+      - CONCIERGE_API_KEY=${CONCIERGE_API_KEY:-}
+      - NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL:-}
+      - GOOGLE_CHAT_WEBHOOK=${GOOGLE_CHAT_WEBHOOK:-}
     volumes:
-      # Persist JSON database across container restarts
-      - sdm-data:/app/data
+      # WOLF-002: Persist JSON database across container restarts  
+      - sdm-enterprise-data:/app/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8095/api/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8090/api/health"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 30s
     networks:
       - rxfit-mesh
     labels:
       - "com.rxfit.service=sdm-headless-enterprise"
       - "com.rxfit.tier=core"
-      - "traefik.enable=false"
+
+  # Cloudflare Tunnel — ops.rxfit.ai → http://sdm-enterprise:8090
+  sdm-cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: sdm-cloudflared
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./tunnel/config.yml:/etc/cloudflared/config.yml:ro
+      - ./tunnel/${TUNNEL_ID:-d41f8ac1-placeholder}.json:/etc/cloudflared/${TUNNEL_ID:-d41f8ac1-placeholder}.json:ro
+    depends_on:
+      sdm-enterprise:
+        condition: service_healthy
+    networks:
+      - rxfit-mesh
+    profiles:
+      - tunnel  # Only started with: docker compose --profile tunnel up -d
 
 volumes:
-  sdm-data:
+  sdm-enterprise-data:
     name: sdm-enterprise-data
+    # External: true if you want to use an existing volume
+    # external: true
 
 networks:
   rxfit-mesh:

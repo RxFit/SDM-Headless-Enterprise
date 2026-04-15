@@ -1,5 +1,7 @@
 import { RefreshCw, Cloud, CloudOff, Loader2 } from 'lucide-react';
-import type { SyncStatus } from './hooks/useGoogleSheetTasks';
+
+// TASK_D12: useGoogleSheetTasks removed — SyncStatus inlined
+type SyncStatus = 'synced' | 'syncing' | 'error' | 'disconnected' | 'idle' | 'disabled' | 'loading';
 
 interface SyncIndicatorProps {
   status: SyncStatus;

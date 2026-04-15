@@ -10,7 +10,7 @@ import type { EnterpriseEdge } from '../types';
 const API_BASE = import.meta.env.VITE_SDM_API_URL || 'http://localhost:8095';
 const API_KEY = import.meta.env.VITE_SDM_API_KEY || '';
 
-function authHeaders() {
+function authHeaders(): Record<string, string> {
   return API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {};
 }
 
