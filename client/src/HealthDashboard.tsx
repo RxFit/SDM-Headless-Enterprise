@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import {
   X,
   Activity,
@@ -9,11 +9,24 @@ import {
   BarChart3,
   Users,
   Zap,
+  Wifi,
 } from 'lucide-react';
 import type { Node } from '@xyflow/react';
 import type { RxNodeData, TaskItem } from './types';
 import { variantColors, statusColors } from './types';
 import type { HealthFeed } from './hooks/useOrchestratorHealth';
+
+/** SDM API /api/health response shape */
+interface SdmHealth {
+  status: string;
+  version: string;
+  uptime_seconds: number;
+  collections: Record<string, number>;
+  tasks: { total: number; by_status: Record<string, number> };
+  websocket: { connected: number; maxConnections: number };
+  git: { enabled: boolean; pending_changes: number; last_commit: string | null };
+  timestamp: string;
+}
 
 interface HealthDashboardProps {
   nodes: Node<RxNodeData>[];
@@ -53,6 +66,23 @@ export default function HealthDashboard({
   onClose,
 }: HealthDashboardProps) {
   const stats = useMemo(() => getAggregateStats(), [getAggregateStats]);
+
+  // SDM API health
+  const [sdmHealth, setSdmHealth] = useState<SdmHealth | null>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    const apiBase = (import.meta as any).env?.VITE_API_URL || '';
+    const key = (import.meta as any).env?.VITE_API_KEY || '';
+    const headers: Record<string, string> = key ? { Authorization: `Bearer ${key}` } : {};
+    const fetchHealth = () =>
+      fetch(`${apiBase}/api/health`, { headers })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => setSdmHealth(d))
+        .catch(() => setSdmHealth(null));
+    fetchHealth();
+    const iv = setInterval(fetchHealth, 30_000);
+    return () => clearInterval(iv);
+  }, [isOpen]);
 
   // Find nodes with degraded/down status
   const problemNodes = useMemo(() => {
@@ -176,6 +206,25 @@ export default function HealthDashboard({
             </div>
           </div>
         </div>
+
+        {/* SDM API Status */}
+        {sdmHealth && (
+          <div className="health-cards" style={{ marginTop: '0.5rem' }}>
+            <div className="health-card" style={{ flex: '1' }}>
+              <div className="health-card-header">
+                <Wifi size={16} style={{ color: sdmHealth.status === 'healthy' ? '#10b981' : '#ef4444' }} />
+                <span>SDM API v{sdmHealth.version}</span>
+              </div>
+              <div className="health-card-breakdown" style={{ gap: '0.75rem' }}>
+                <span style={{ color: '#10b981' }}>{'\u25cf'} {sdmHealth.status}</span>
+                <span>{'\u23f1'} {Math.round(sdmHealth.uptime_seconds / 60)}m uptime</span>
+                <span>{sdmHealth.websocket.connected}/{sdmHealth.websocket.maxConnections} ws</span>
+                <span>{sdmHealth.git.enabled ? 'Git sync ON' : 'Git sync OFF'}</span>
+                <span>{sdmHealth.collections.nodes ?? 0} nodes / {sdmHealth.collections.tasks ?? 0} tasks</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Critical Tasks */}
         {criticalTasks.length > 0 && (

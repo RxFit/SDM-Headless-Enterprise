@@ -1,0 +1,11 @@
+node_modules
+client/node_modules
+dist
+client/dist
+.git
+.gitignore
+*.md
+.env.local
+.env.*.local
+.vscode
+.idea

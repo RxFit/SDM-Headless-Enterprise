@@ -29,7 +29,18 @@ import { initAutoTaskEngine } from './lib/autoTaskRules.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const ROOT = join(__dirname, '..');
+
+// In dev: __dirname = <project>/server → ROOT = <project>
+// In prod: __dirname = /app/dist/server → ROOT = /app/dist → need /app
+// Resolve ROOT by checking if data/ exists at each level
+function resolveRoot(): string {
+  const oneUp = join(__dirname, '..');
+  if (existsSync(join(oneUp, 'data'))) return oneUp;
+  const twoUp = join(__dirname, '..', '..');
+  if (existsSync(join(twoUp, 'data'))) return twoUp;
+  return oneUp; // fallback
+}
+const ROOT = process.env.SDM_ROOT || resolveRoot();
 
 // ─────────────────────────────────────────────────────────
 // Configuration
