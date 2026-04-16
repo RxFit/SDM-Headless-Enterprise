@@ -1,0 +1,251 @@
+/**
+ * sheetSync.ts — Bidirectional Google Sheet Sync Engine (TASK_E01)
+ *
+ * Reads & writes tasks to a Google Sheet using the Sheets API.
+ * Conflict resolution: most recent `updated_at` timestamp wins.
+ *
+ * Column layout (1-indexed):
+ *   A: id | B: node_id | C: title | D: description | E: status
+ *   F: priority | G: assignee | H: source | I: created_at | J: updated_at | K: tags
+ */
+
+import { google, sheets_v4 } from 'googleapis';
+import type { JsonDb } from './jsonDb.js';
+import type { WssBroadcast } from './wssBroadcast.js';
+import type { EnterpriseTask } from '../types.js';
+import { v4 as uuidv4 } from 'uuid';
+
+// ─────────────────────────────────────────────────────────
+// Config
+// ─────────────────────────────────────────────────────────
+const COL_HEADERS = ['id','node_id','title','description','status','priority','assignee','source','created_at','updated_at','tags'];
+const TASK_SHEET_NAME = 'Tasks';
+const HEADER_ROW = 1;
+
+export interface SheetSyncConfig {
+  spreadsheet_id: string;
+  credentials_path: string;
+  sync_interval_ms: number;
+}
+
+// ─────────────────────────────────────────────────────────
+// Utility: auth
+// ─────────────────────────────────────────────────────────
+async function getAuth(credentialsPath: string) {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: credentialsPath,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+  return auth;
+}
+
+// ─────────────────────────────────────────────────────────
+// Row <-> Task conversion
+// ─────────────────────────────────────────────────────────
+function rowToTask(row: (string | null | undefined)[]): EnterpriseTask | null {
+  const get = (idx: number) => (row[idx] ?? '').trim();
+  const id = get(0);
+  if (!id) return null;
+
+  return {
+    id,
+    node_id: get(1) || null,
+    title: get(2) || '(no title)',
+    description: get(3) || undefined,
+    status: (get(4) as EnterpriseTask['status']) || 'pending',
+    priority: (get(5) as EnterpriseTask['priority']) || 'medium',
+    assignee: get(6) || undefined,
+    source: (get(7) as EnterpriseTask['source']) || 'manual',
+    created_at: get(8) || new Date().toISOString(),
+    updated_at: get(9) || new Date().toISOString(),
+    tags: get(10) ? get(10).split(',').map(t => t.trim()).filter(Boolean) : undefined,
+  };
+}
+
+function taskToRow(task: EnterpriseTask): string[] {
+  return [
+    task.id,
+    task.node_id ?? '',
+    task.title,
+    task.description ?? '',
+    task.status,
+    task.priority,
+    task.assignee ?? '',
+    task.source,
+    task.created_at,
+    task.updated_at,
+    Array.isArray(task.tags) ? task.tags.join(', ') : '',
+  ];
+}
+
+// ─────────────────────────────────────────────────────────
+// Sync Engine
+// ─────────────────────────────────────────────────────────
+export class SheetSyncEngine {
+  private db: JsonDb;
+  private wss: WssBroadcast;
+  private config: SheetSyncConfig;
+  private sheets: sheets_v4.Sheets | null = null;
+  private intervalId: NodeJS.Timeout | null = null;
+  private lastSync: Date | null = null;
+  private running = false;
+
+  constructor(db: JsonDb, wss: WssBroadcast, config: SheetSyncConfig) {
+    this.db = db;
+    this.wss = wss;
+    this.config = config;
+  }
+
+  async initialize(): Promise<void> {
+    const auth = await getAuth(this.config.credentials_path);
+    this.sheets = google.sheets({ version: 'v4', auth: auth as Parameters<typeof google.sheets>[0]['auth'] });
+    await this.ensureHeaders();
+    console.log('[sheetSync] ✓ Initialized — Sheet:', this.config.spreadsheet_id);
+  }
+
+  start(): void {
+    if (this.running) return;
+    this.running = true;
+    // Initial sync immediately
+    void this.sync().catch(err => console.error('[sheetSync] Initial sync error:', err));
+    this.intervalId = setInterval(() => {
+      void this.sync().catch(err => console.error('[sheetSync] Sync error:', err));
+    }, this.config.sync_interval_ms);
+    console.log(`[sheetSync] Sync started every ${this.config.sync_interval_ms / 1000}s`);
+  }
+
+  stop(): void {
+    this.running = false;
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    console.log('[sheetSync] Stopped');
+  }
+
+  getStatus() {
+    return {
+      enabled: this.running,
+      lastSync: this.lastSync?.toISOString() ?? null,
+      spreadsheet_id: this.config.spreadsheet_id,
+    };
+  }
+
+  // ─── Core sync ───────────────────────────────────────────
+  async sync(): Promise<{ created: number; updated: number; pushed: number }> {
+    if (!this.sheets) throw new Error('SheetSync not initialized');
+
+    const result = { created: 0, updated: 0, pushed: 0 };
+
+    // 1. Pull sheet data
+    const response = await this.sheets.spreadsheets.values.get({
+      spreadsheetId: this.config.spreadsheet_id,
+      range: `${TASK_SHEET_NAME}!A${HEADER_ROW + 1}:K`,
+    });
+
+    const rows = (response.data.values ?? []) as string[][];
+    const sheetTasks = rows
+      .map(r => rowToTask(r))
+      .filter((t): t is EnterpriseTask => t !== null);
+
+    const dbTasks = this.db.getAll<EnterpriseTask>('tasks');
+    const dbById = new Map(dbTasks.map(t => [t.id, t]));
+    const sheetById = new Map(sheetTasks.map(t => [t.id, t]));
+
+    // 2. Sheet → DB (new or newer sheet entries)
+    for (const sheetTask of sheetTasks) {
+      const dbTask = dbById.get(sheetTask.id);
+      if (!dbTask) {
+        // New in sheet → insert to DB
+        await this.db.insert<EnterpriseTask>('tasks', sheetTask);
+        this.wss.broadcast('task_created', sheetTask);
+        result.created++;
+      } else if (sheetTask.updated_at > dbTask.updated_at) {
+        // Sheet is newer — update DB
+        await this.db.update<EnterpriseTask>('tasks', sheetTask.id, sheetTask);
+        this.wss.broadcast('task_updated', sheetTask);
+        result.updated++;
+      }
+    }
+
+    // 3. DB → Sheet (new or newer DB entries)
+    const sheetUpdates: { rowIdx: number; task: EnterpriseTask }[] = [];
+    const sheetAppends: EnterpriseTask[] = [];
+
+    for (const dbTask of dbTasks) {
+      const sheetTask = sheetById.get(dbTask.id);
+      if (!sheetTask) {
+        sheetAppends.push(dbTask);
+        result.pushed++;
+      } else if (dbTask.updated_at > sheetTask.updated_at) {
+        const rowIdx = rows.findIndex(r => r[0] === dbTask.id);
+        if (rowIdx >= 0) {
+          sheetUpdates.push({ rowIdx: rowIdx + HEADER_ROW + 1, task: dbTask });
+          result.pushed++;
+        }
+      }
+    }
+
+    // Apply sheet updates (batch)
+    if (sheetUpdates.length > 0) {
+      const data = sheetUpdates.map(({ rowIdx, task }) => ({
+        range: `${TASK_SHEET_NAME}!A${rowIdx}:K${rowIdx}`,
+        values: [taskToRow(task)],
+      }));
+      await this.sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: this.config.spreadsheet_id,
+        requestBody: { valueInputOption: 'RAW', data },
+      });
+    }
+
+    // Append new rows
+    if (sheetAppends.length > 0) {
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId: this.config.spreadsheet_id,
+        range: `${TASK_SHEET_NAME}!A:K`,
+        valueInputOption: 'RAW',
+        requestBody: { values: sheetAppends.map(taskToRow) },
+      });
+    }
+
+    this.lastSync = new Date();
+    if (result.created + result.updated + result.pushed > 0) {
+      console.log(`[sheetSync] Sync: created=${result.created} updated=${result.updated} pushed=${result.pushed}`);
+    }
+
+    return result;
+  }
+
+  // ─── Ensure header row exists ─────────────────────────────
+  private async ensureHeaders(): Promise<void> {
+    if (!this.sheets) return;
+    const res = await this.sheets.spreadsheets.values.get({
+      spreadsheetId: this.config.spreadsheet_id,
+      range: `${TASK_SHEET_NAME}!A1:K1`,
+    });
+    const existing = (res.data.values ?? [])[0] ?? [];
+    if (existing.length === 0 || existing[0] !== 'id') {
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: this.config.spreadsheet_id,
+        range: `${TASK_SHEET_NAME}!A1:K1`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [COL_HEADERS] },
+      });
+      console.log('[sheetSync] Headers written');
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Singleton
+// ─────────────────────────────────────────────────────────
+let _engine: SheetSyncEngine | null = null;
+
+export function initSheetSync(db: JsonDb, wss: WssBroadcast, config: SheetSyncConfig): SheetSyncEngine {
+  _engine = new SheetSyncEngine(db, wss, config);
+  return _engine;
+}
+
+export function getSheetSync(): SheetSyncEngine | null {
+  return _engine;
+}

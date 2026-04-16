@@ -1,0 +1,45 @@
+# ══════════════════════════════════════════════════════════════
+# SDM Headless Enterprise — Docker Compose
+# TASK_H02: Production deployment configuration
+# ══════════════════════════════════════════════════════════════
+
+services:
+  sdm-enterprise:
+    container_name: sdm-headless-enterprise
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8095:8095"
+    environment:
+      - NODE_ENV=production
+      - PORT=8095
+      - SDM_API_KEY=${SDM_API_KEY:-sdm-enterprise-key-2026}
+      - GIT_AUTO_SYNC=false
+      - GOOGLE_SHEET_ID=${GOOGLE_SHEET_ID:-}
+      - GOOGLE_CREDENTIALS_PATH=${GOOGLE_CREDENTIALS_PATH:-}
+    volumes:
+      # Persist JSON database across container restarts
+      - sdm-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8095/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - rxfit-mesh
+    labels:
+      - "com.rxfit.service=sdm-headless-enterprise"
+      - "com.rxfit.tier=core"
+      - "traefik.enable=false"
+
+volumes:
+  sdm-data:
+    name: sdm-enterprise-data
+
+networks:
+  rxfit-mesh:
+    external: true
+    name: rxfit-mesh

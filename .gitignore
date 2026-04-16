@@ -1,18 +1,30 @@
-# Secrets — NEVER commit
-gcp-sa-key.json
-.env
-*.env.local
-
 # Dependencies
 node_modules/
+.pnpm-store/
 
-# Logs
-*.log
-alert_log.jsonl*
+# Build output
+dist/
+client/dist/
+
+# Environment & secrets
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Build artifacts
-dist/
+# Logs
+*.log
+npm-debug.log*
+
+# Data (config has secrets — keep template only)
+data/config.json
+
+# Archive rotation
+data/archive/*.json
