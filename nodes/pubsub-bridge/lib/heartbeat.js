@@ -28,6 +28,7 @@ async function sendHttpHeartbeat() {
   const url = `${COMMAND_CENTER_URL}/api/internal/heartbeat`;
   const payload = {
     nodeName,
+    nodeType: 'event_driven',  // N1: Scale-to-zero node — silence is expected, not an error
     status: 'HEALTHY',
     uptimeSeconds: Math.floor((Date.now() - startTime) / 1000),
     memoryMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),

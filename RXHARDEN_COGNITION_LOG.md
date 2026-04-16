@@ -238,3 +238,36 @@ Files modified in RxFit-Concierge:
 
 **Verdict: CONDITIONAL PASS** — All code changes and deployments verified. Concierge deploy pending Replit sync. M2 (webhook URL) remains the critical gap for full monitoring activation.
 
+---
+
+## Sprint 3: N1 — Node Type Differentiation (Antigravity Session)
+**Timestamp:** 2026-04-16T03:30:00Z
+**Operator:** Google Antigravity
+**Conversation:** 47fa3577-b724-411d-89ce-41db638da326
+
+**Root Cause Analysis:** Jade CLI (Gemini) was incorrectly diagnosing the pubsub-bridge as "broken" because:
+1. Searched for it as a local Docker container (`docker ps`) — it's a Cloud Run service
+2. Searched for it as a local Node.js process — it runs on GCP infrastructure
+3. Conflated the Silent Detector's `SILENT` status with a failure — it's expected behavior for event-driven nodes
+
+**Implementation (N1: Node Type Differentiation):**
+
+| File | Change |
+|------|--------|
+| `shared/sdmSchema.ts` | Added `node_type` column (`always_on` / `event_driven`) |
+| `server/sdmSchemaGuard.ts` | DDL includes `node_type`, Phase 4 auto-migrates `sdm-pubsub-bridge` to `event_driven` |
+| `server/orchestrator/telemetryRoutes.ts` | Heartbeat handler accepts optional `nodeType` field |
+| `server/sdmSilentDetector.ts` | Query filter excludes `event_driven` nodes from SILENT alerts |
+| `nodes/pubsub-bridge/lib/heartbeat.js` | Self-declares `nodeType: 'event_driven'` in heartbeat payload |
+
+**Behavior Change:**
+- `always_on` nodes (crm, stripe, wellness): SILENT alert fires after 5 min of no heartbeat ✅
+- `event_driven` nodes (pubsub-bridge): SILENT alert **never** fires — expected to be idle ✅
+- SchemaGuard auto-heals: `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` + auto-migrate ✅
+
+**Remaining Gap:**
+- M3 (GOOGLE_CHAT_WEBHOOK_URL): Found in Jade CoS `.env` — needs to be added as Replit Secret on Command Center
+- Pubsub-bridge Cloud Run redeployment needed to pick up `nodeType` change
+
+**Verdict: PASS** — Code changes complete across both repos. Pending: git push + Cloud Run deploy + Replit Secret.
+
