@@ -1,0 +1,40 @@
+{
+  "version": "1.0.0",
+  "websocket": {
+    "heartbeat_interval_ms": 30000,
+    "max_connections": 50
+  },
+  "google_sheet": {
+    "spreadsheet_id": "",
+    "sheet_tab": "Tasks",
+    "sync_interval_ms": 300000,
+    "proxy_url": ""
+  },
+  "notifications": {
+    "google_chat_webhook": "",
+    "email_sender": ""
+  },
+  "auto_task_rules": [
+    {
+      "trigger": "container_unhealthy",
+      "node_id": "",
+      "priority": "critical",
+      "title_template": "Fix {{node}} container health",
+      "enabled": true
+    },
+    {
+      "trigger": "cron_failed",
+      "node_id": "jade",
+      "priority": "high",
+      "title_template": "Investigate failed cron: {{job_name}}",
+      "enabled": true
+    },
+    {
+      "trigger": "kaizen_approved",
+      "node_id": "",
+      "priority": "medium",
+      "title_template": "Implement Kaizen proposal: {{proposal_title}}",
+      "enabled": true
+    }
+  ]
+}
