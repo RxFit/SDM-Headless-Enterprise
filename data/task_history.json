@@ -59,5 +59,14 @@
     "actor": "user",
     "to_value": "pending",
     "timestamp": "2026-04-29T21:22:03.031Z"
+  },
+  {
+    "id": "ca1fa24e-3976-49be-8245-246983e9de7c",
+    "task_id": "7d36033e-4745-47fb-96d4-b3b8ee9167bb",
+    "action": "deleted",
+    "actor": "user",
+    "from_value": "pending",
+    "to_value": "cancelled",
+    "timestamp": "2026-04-29T21:23:01.656Z"
   }
 ]
