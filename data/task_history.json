@@ -51,5 +51,13 @@
     "from_value": "in-progress",
     "to_value": "cancelled",
     "timestamp": "2026-04-29T19:09:31.841Z"
+  },
+  {
+    "id": "89021d3b-6514-4d3f-bd4c-c58f2060195b",
+    "task_id": "7d36033e-4745-47fb-96d4-b3b8ee9167bb",
+    "action": "created",
+    "actor": "user",
+    "to_value": "pending",
+    "timestamp": "2026-04-29T21:22:03.031Z"
   }
 ]
