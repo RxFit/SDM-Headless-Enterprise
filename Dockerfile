@@ -55,7 +55,7 @@ COPY data/ ./data/
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget -q -O- http://localhost:${PORT:-8090}/api/health | grep -q '"status":"healthy"' || exit 1
+  CMD wget -q -O- http://127.0.0.1:${PORT:-8090}/api/v1/health | grep -q '"status":"healthy"' || exit 1
 
 EXPOSE 8090
 

@@ -1,10 +1,10 @@
 /**
- * health.ts — System Health & Cron Status Routes
+ * health.ts â€” System Health & Cron Status Routes
  * Public endpoint (no auth required).
  */
 
 import { Router } from 'express';
-import type { JsonDb } from '../lib/jsonDb.js';
+import type { IDatabase } from '../lib/db.js';
 import type { WssBroadcast } from '../lib/wssBroadcast.js';
 import type { GitSync } from '../lib/gitSync.js';
 import type { EnterpriseTask, CronStatusEntry } from '../types.js';
@@ -13,14 +13,14 @@ import type { EnterpriseTask, CronStatusEntry } from '../types.js';
 const cronStatuses: Map<string, CronStatusEntry> = new Map();
 
 export function createHealthRoutes(
-  db: JsonDb,
+  db: IDatabase,
   wss: WssBroadcast,
   git: GitSync,
   startTime: Date
 ): Router {
   const router = Router();
 
-  // GET /api/health — Public system health
+  // GET /api/health â€” Public system health
   router.get('/', (_req, res) => {
     const tasks = db.getAll<EnterpriseTask>('tasks');
     const stats = db.getStats();
@@ -51,14 +51,14 @@ export function createHealthRoutes(
     });
   });
 
-  // GET /api/health/cron — Cron job statuses
+  // GET /api/health/cron â€” Cron job statuses
   router.get('/cron', (_req, res) => {
     const statuses = Array.from(cronStatuses.values());
     statuses.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
     res.json({ cron_jobs: statuses, count: statuses.length });
   });
 
-  // POST /api/health/cron-status — Receive cron status from Jade CoS
+  // POST /api/health/cron-status â€” Receive cron status from Jade CoS
   router.post('/cron-status', (req, res) => {
     const { job_name, status, duration_ms, error } = req.body;
     if (!job_name || !status) {

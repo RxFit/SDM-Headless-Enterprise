@@ -1,0 +1,48 @@
+{
+  "name": "SDM Headless Enterprise — Dev Sandbox",
+  "image": "node:20-bookworm-slim",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "typescript.tsdk": "node_modules/typescript/lib"
+      },
+      "extensions": [
+        "google.gemini-code-assist",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ms-vscode.vscode-typescript-next",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "workspaceFolder": "/workspace",
+  "mounts": [
+    "source=C:\\Users\\danie\\OneDrive\\Documents\\AI_AGENTS_ANTIGRAVITY_LOCAL\\_CERBERUS_CORE,target=/cerberus-core,type=bind,readonly",
+    "source=sdm_node_modules,target=/workspace/node_modules,type=volume"
+  ],
+  "runArgs": [
+    "--memory=4g",
+    "--cpus=3"
+  ],
+  "postCreateCommand": "npm install",
+  "forwardPorts": [3000, 5000],
+  "portsAttributes": {
+    "3000": {
+      "label": "SDM Express API",
+      "onAutoForward": "notify"
+    },
+    "5000": {
+      "label": "SDM Vite Dev Server",
+      "onAutoForward": "notify"
+    }
+  },
+  "remoteUser": "node"
+}

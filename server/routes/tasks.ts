@@ -1,5 +1,6 @@
+import { logger } from '../lib/logger.js';
 /**
- * tasks.ts — Task CRUD Routes
+ * tasks.ts â€” Task CRUD Routes
  * WOLF-008: Idempotency key support for agent task creation.
  *
  * The heart of the SDM Headless Enterprise.
@@ -7,7 +8,7 @@
 
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import type { JsonDb } from '../lib/jsonDb.js';
+import type { IDatabase } from '../lib/db.js';
 import type { WssBroadcast } from '../lib/wssBroadcast.js';
 import type { GitSync } from '../lib/gitSync.js';
 import type {
@@ -18,13 +19,14 @@ import type {
   DelegateTaskRequest,
   TaskStatus,
 } from '../types.js';
+import { validateBody, createTaskSchema, updateTaskSchema, delegateTaskSchema } from '../schemas/validation.js';
 
-export function createTaskRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): Router {
+export function createTaskRoutes(db: IDatabase, wss: WssBroadcast, git: GitSync): Router {
   const router = Router();
 
-  // ─────────────────────────────────────────────────────────
-  // GET /api/tasks — List tasks with optional filters
-  // ─────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // GET /api/tasks â€” List tasks with optional filters
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   router.get('/', (req, res) => {
     let tasks = db.getAll<EnterpriseTask>('tasks');
 
@@ -39,19 +41,19 @@ export function createTaskRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): R
     res.json({ tasks, count: tasks.length });
   });
 
-  // ─────────────────────────────────────────────────────────
-  // GET /api/tasks/unassigned — Tasks with null node_id
-  // ─────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // GET /api/tasks/unassigned â€” Tasks with null node_id
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   router.get('/unassigned', (_req, res) => {
     const tasks = db.query<EnterpriseTask>('tasks', t => !t.node_id);
     res.json({ tasks, count: tasks.length });
   });
 
-  // ─────────────────────────────────────────────────────────
-  // GET /api/tasks/:id — Get single task
-  // ─────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // GET /api/tasks/:id â€” Get single task
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   router.get('/:id', (req, res) => {
-    const task = db.getById<EnterpriseTask>('tasks', req.params.id);
+    const task = db.getById<EnterpriseTask>('tasks', (req.params.id as string));
     if (!task) {
       res.status(404).json({ error: 'Task not found' });
       return;
@@ -69,10 +71,10 @@ export function createTaskRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): R
     res.json(task);
   });
 
-  // ─────────────────────────────────────────────────────────
-  // POST /api/tasks — Create task
-  // ─────────────────────────────────────────────────────────
-  router.post('/', async (req, res) => {
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // POST /api/tasks â€” Create task
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  router.post('/', validateBody(createTaskSchema), async (req, res) => {
     try {
       const body = req.body as CreateTaskRequest;
 
@@ -151,17 +153,17 @@ export function createTaskRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): R
 
       res.status(201).json(task);
     } catch (err) {
-      console.error('[tasks] Create failed:', err);
+      logger.error(err, '[tasks] Create failed:');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  // ─────────────────────────────────────────────────────────
-  // PATCH /api/tasks/:id — Update task
-  // ─────────────────────────────────────────────────────────
-  router.patch('/:id', async (req, res) => {
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // PATCH /api/tasks/:id â€” Update task
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  router.patch('/:id', validateBody(updateTaskSchema), async (req, res) => {
     try {
-      const existing = db.getById<EnterpriseTask>('tasks', req.params.id);
+      const existing = db.getById<EnterpriseTask>('tasks', (req.params.id as string));
       if (!existing) {
         res.status(404).json({ error: 'Task not found' });
         return;
@@ -228,7 +230,7 @@ export function createTaskRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): R
       if (body.node_id !== undefined) patch.node_id = body.node_id;
       if (body.metadata !== undefined) patch.metadata = { ...existing.metadata, ...body.metadata };
 
-      const updated = await db.update<EnterpriseTask>('tasks', req.params.id, patch);
+      const updated = await db.update<EnterpriseTask>('tasks', (req.params.id as string), patch);
 
       // Insert history entries
       for (const entry of historyEntries) {
@@ -241,24 +243,24 @@ export function createTaskRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): R
 
       res.json(updated);
     } catch (err) {
-      console.error('[tasks] Update failed:', err);
+      logger.error(err, '[tasks] Update failed:');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  // ─────────────────────────────────────────────────────────
-  // DELETE /api/tasks/:id — Soft delete (set status=cancelled)
-  // ─────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // DELETE /api/tasks/:id â€” Soft delete (set status=cancelled)
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   router.delete('/:id', async (req, res) => {
     try {
-      const existing = db.getById<EnterpriseTask>('tasks', req.params.id);
+      const existing = db.getById<EnterpriseTask>('tasks', (req.params.id as string));
       if (!existing) {
         res.status(404).json({ error: 'Task not found' });
         return;
       }
 
       const now = new Date().toISOString();
-      await db.update<EnterpriseTask>('tasks', req.params.id, {
+      await db.update<EnterpriseTask>('tasks', (req.params.id as string), {
         status: 'cancelled' as TaskStatus,
         updated_at: now,
       });
@@ -278,17 +280,17 @@ export function createTaskRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): R
 
       res.json({ deleted: true, id: existing.id });
     } catch (err) {
-      console.error('[tasks] Delete failed:', err);
+      logger.error(err, '[tasks] Delete failed:');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  // ─────────────────────────────────────────────────────────
-  // POST /api/tasks/:id/delegate — Delegate task
-  // ─────────────────────────────────────────────────────────
-  router.post('/:id/delegate', async (req, res) => {
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // POST /api/tasks/:id/delegate â€” Delegate task
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  router.post('/:id/delegate', validateBody(delegateTaskSchema), async (req, res) => {
     try {
-      const existing = db.getById<EnterpriseTask>('tasks', req.params.id);
+      const existing = db.getById<EnterpriseTask>('tasks', (req.params.id as string));
       if (!existing) {
         res.status(404).json({ error: 'Task not found' });
         return;
@@ -308,7 +310,7 @@ export function createTaskRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): R
         delegated_at: now,
       };
 
-      const updated = await db.update<EnterpriseTask>('tasks', req.params.id, {
+      const updated = await db.update<EnterpriseTask>('tasks', (req.params.id as string), {
         delegated_to: delegationInfo,
         assignee: body.name,
         updated_at: now,
@@ -333,7 +335,7 @@ export function createTaskRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): R
 
       res.json(updated);
     } catch (err) {
-      console.error('[tasks] Delegate failed:', err);
+      logger.error(err, '[tasks] Delegate failed:');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -341,12 +343,12 @@ export function createTaskRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): R
   return router;
 }
 
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Dependency Cascade Resolution
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function cascadeDependencyResolution(
-  db: JsonDb,
+  db: IDatabase,
   completedTaskId: string,
   wss: WssBroadcast,
   git: GitSync
@@ -385,7 +387,7 @@ async function cascadeDependencyResolution(
       wss.broadcast('task_updated', { ...dep, status: 'pending', blocked_by: [] });
       git.recordChange();
 
-      console.log(`[tasks] Auto-unblocked ${dep.id} (dependency ${completedTaskId} completed)`);
+      logger.info(`[tasks] Auto-unblocked ${dep.id} (dependency ${completedTaskId} completed)`);
     }
   }
 }

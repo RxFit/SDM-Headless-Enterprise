@@ -1,5 +1,6 @@
+import { logger } from '../lib/logger.js';
 /**
- * agents.ts — Agent Integration Routes
+ * agents.ts â€” Agent Integration Routes
  * Endpoints for MCP tools (sdm_create_task, sdm_update_task, etc.)
  * and system event ingestion for auto-task creation.
  *
@@ -8,25 +9,24 @@
 
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import type { JsonDb } from '../lib/jsonDb.js';
+import type { IDatabase } from '../lib/db.js';
 import type { WssBroadcast } from '../lib/wssBroadcast.js';
 import type { GitSync } from '../lib/gitSync.js';
-import type {
-  EnterpriseTask,
+import type {  EnterpriseTask,
   TaskHistoryEntry,
   AgentEventRequest,
-  AutoTaskRule,
   SdmConfig,
 } from '../types.js';
+import { validateBody, createTaskSchema, agentEventSchema } from '../schemas/validation.js';
 
-export function createAgentRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): Router {
+export function createAgentRoutes(db: IDatabase, wss: WssBroadcast, git: GitSync): Router {
   const router = Router();
 
-  // ─────────────────────────────────────────────────────────
-  // POST /api/agents/tasks — Agent creates a task
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // POST /api/agents/tasks â€” Agent creates a task
   // (Same as POST /api/tasks but with agent-specific defaults)
-  // ─────────────────────────────────────────────────────────
-  router.post('/tasks', async (req, res) => {
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  router.post('/tasks', validateBody(createTaskSchema), async (req, res) => {
     try {
       const body = req.body;
 
@@ -84,16 +84,16 @@ export function createAgentRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): 
 
       res.status(201).json({ task, duplicate: false });
     } catch (err) {
-      console.error('[agents] Task creation failed:', err);
+      logger.error(err, '[agents] Task creation failed:');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  // ─────────────────────────────────────────────────────────
-  // POST /api/agents/events — Ingest system events
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // POST /api/agents/events â€” Ingest system events
   // (container_unhealthy, pr_merged, audit_complete, etc.)
-  // ─────────────────────────────────────────────────────────
-  router.post('/events', async (req, res) => {
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  router.post('/events', validateBody(agentEventSchema), async (req, res) => {
     try {
       const body = req.body as AgentEventRequest;
 
@@ -167,7 +167,7 @@ export function createAgentRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): 
 
       res.json({ created: createdTasks, count: createdTasks.length });
     } catch (err) {
-      console.error('[agents] Event ingestion failed:', err);
+      logger.error(err, '[agents] Event ingestion failed:');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -176,7 +176,7 @@ export function createAgentRoutes(db: JsonDb, wss: WssBroadcast, git: GitSync): 
 }
 
 // Load config from data/config.json via the DB
-function loadConfig(db: JsonDb): SdmConfig {
+function loadConfig(db: IDatabase): SdmConfig {
   // Config is stored separately, not in the standard collections
   // Return a default if not loaded
   return {

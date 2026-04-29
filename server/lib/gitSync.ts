@@ -1,13 +1,15 @@
 /**
- * gitSync.ts — Batched Git Commit & Push Engine
+ * gitSync.ts Ã¢â‚¬â€ Batched Git Commit & Push Engine
  * WOLF-002: Git commit batching. 30s window. In-memory is authoritative; git is async persistence.
  *
  * Periodically commits changes to the data/ directory and pushes to origin.
- * Never crashes on failure — git is a persistence optimization, not a requirement.
+ * Never crashes on failure Ã¢â‚¬â€ git is a persistence optimization, not a requirement.
  */
 
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
+import { logger } from "./logger.js";
+
 
 const execAsync = promisify(exec);
 
@@ -30,7 +32,7 @@ export class GitSync {
    */
   start(): void {
     if (!this.enabled) {
-      console.log('[gitSync] Disabled via config');
+      logger.info('[gitSync] Disabled via config');
       return;
     }
 
@@ -40,7 +42,7 @@ export class GitSync {
       await this.commitAndPush();
     }, this.intervalMs);
 
-    console.log(`[gitSync] Started (interval: ${this.intervalMs}ms)`);
+    logger.info(`[gitSync] Started (interval: ${this.intervalMs}ms)`);
   }
 
   /**
@@ -50,7 +52,7 @@ export class GitSync {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
-      console.log('[gitSync] Stopped');
+      logger.info('[gitSync] Stopped');
     }
   }
 
@@ -58,6 +60,7 @@ export class GitSync {
    * Record that a change was made (increment pending counter).
    */
   recordChange(): void {
+    if (!this.enabled) return;
     this.pendingChanges++;
   }
 
@@ -65,7 +68,7 @@ export class GitSync {
    * Commit all pending changes and push.
    */
   async commitAndPush(): Promise<boolean> {
-    if (this.pendingChanges === 0) return false;
+    if (!this.enabled || this.pendingChanges === 0) return false;
 
     const changeCount = this.pendingChanges;
     this.pendingChanges = 0;
@@ -84,20 +87,20 @@ export class GitSync {
       const msg = `SDM auto-sync: ${changeCount} change${changeCount > 1 ? 's' : ''}`;
       await execAsync(`git commit -m "${msg}"`, { cwd: this.repoDir });
 
-      // Push (async, don't await — non-blocking)
+      // Push (async, don't await Ã¢â‚¬â€ non-blocking)
       execAsync('git push origin main', { cwd: this.repoDir })
         .then(() => {
-          console.log(`[gitSync] Pushed: ${msg}`);
+          logger.info(`[gitSync] Pushed: ${msg}`);
         })
         .catch((err) => {
-          console.error(`[gitSync] Push failed (non-fatal):`, (err as Error).message);
+          logger.error(err as Error, `[gitSync] Push failed (non-fatal)`);
         });
 
       this.lastCommit = new Date();
-      console.log(`[gitSync] Committed: ${msg}`);
+      logger.info(`[gitSync] Committed: ${msg}`);
       return true;
     } catch (err) {
-      console.error(`[gitSync] Commit failed (non-fatal):`, (err as Error).message);
+      logger.error(err as Error, `[gitSync] Commit failed (non-fatal)`);
       // Re-add pending changes back
       this.pendingChanges += changeCount;
       return false;
@@ -108,6 +111,7 @@ export class GitSync {
    * Force an immediate commit + push (used on graceful shutdown).
    */
   async flush(): Promise<void> {
+    if (!this.enabled) return;
     await this.commitAndPush();
   }
 

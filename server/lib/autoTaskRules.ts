@@ -1,16 +1,18 @@
 /**
- * autoTaskRules.ts — Auto-Task Rule Engine (TASK_C14)
+ * autoTaskRules.ts â€” Auto-Task Rule Engine (TASK_C14)
  *
  * Evaluates incoming agent events against config-driven rules
  * and automatically creates tasks when conditions match.
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { JsonDb } from './jsonDb.js';
+import type { IDatabase } from './db.js';
 import type { WssBroadcast } from './wssBroadcast.js';
 import type { EnterpriseTask } from '../types.js';
+import { logger } from "./logger.js";
 
-/** AgentEvent — emitted by Jade CoS or external agents via POST /api/agents/events */
+
+/** AgentEvent â€” emitted by Jade CoS or external agents via POST /api/agents/events */
 export interface AgentEvent {
   agent_id: string;
   event_type: string;
@@ -21,14 +23,14 @@ export interface AgentEvent {
   timestamp: string;
 }
 
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Rule Definition
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface AutoTaskRule {
   id: string;
   name: string;
   enabled: boolean;
-  /** Match criteria — all specified fields must match the event */
+  /** Match criteria â€” all specified fields must match the event */
   match: {
     event_type?: string;
     agent_id?: string;
@@ -51,15 +53,15 @@ export interface AutoTaskRule {
   dedupe_window_hours?: number;
 }
 
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Engine
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export class AutoTaskRuleEngine {
   private rules: AutoTaskRule[] = [];
-  private db: JsonDb;
+  private db: IDatabase;
   private wss: WssBroadcast;
 
-  constructor(db: JsonDb, wss: WssBroadcast) {
+  constructor(db: IDatabase, wss: WssBroadcast) {
     this.db = db;
     this.wss = wss;
   }
@@ -72,11 +74,11 @@ export class AutoTaskRuleEngine {
     const raw = config['auto_task_rules'];
     if (!Array.isArray(raw)) {
       this.rules = [];
-      console.log('[autoTaskRules] No rules configured');
+      logger.info('[autoTaskRules] No rules configured');
       return;
     }
     this.rules = (raw as AutoTaskRule[]).filter(r => r.enabled !== false);
-    console.log(`[autoTaskRules] Loaded ${this.rules.length} active rules`);
+    logger.info(`[autoTaskRules] Loaded ${this.rules.length} active rules`);
   }
 
   /**
@@ -97,7 +99,7 @@ export class AutoTaskRuleEngine {
       // Dedupe check
       if (rule.dedupe_window_hours) {
         if (this.isDuplicate(title, rule.dedupe_window_hours)) {
-          console.log(`[autoTaskRules] Dedupe: skipping "${title}" (rule: ${rule.id})`);
+          logger.info(`[autoTaskRules] Dedupe: skipping "${title}" (rule: ${rule.id})`);
           continue;
         }
       }
@@ -122,13 +124,13 @@ export class AutoTaskRuleEngine {
       this.wss.broadcast('task_created', task);
       created.push(task);
 
-      console.log(`[autoTaskRules] ✓ Rule "${rule.name}" → created task: ${task.title}`);
+      logger.info(`[autoTaskRules] âœ“ Rule "${rule.name}" â†’ created task: ${task.title}`);
     }
 
     return created;
   }
 
-  // ─── Private helpers ───────────────────────────────────
+  // â”€â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private matches(rule: AutoTaskRule, event: AgentEvent): boolean {
     const { match } = rule;
@@ -166,12 +168,12 @@ export class AutoTaskRuleEngine {
   }
 }
 
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Singleton accessor (set after db/wss init)
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let _engine: AutoTaskRuleEngine | null = null;
 
-export function initAutoTaskEngine(db: JsonDb, wss: WssBroadcast): AutoTaskRuleEngine {
+export function initAutoTaskEngine(db: IDatabase, wss: WssBroadcast): AutoTaskRuleEngine {
   _engine = new AutoTaskRuleEngine(db, wss);
   return _engine;
 }

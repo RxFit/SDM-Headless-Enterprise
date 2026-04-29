@@ -1,15 +1,15 @@
 /**
- * history.ts — Audit Trail Query Routes
+ * history.ts â€” Audit Trail Query Routes
  */
 
 import { Router } from 'express';
-import type { JsonDb } from '../lib/jsonDb.js';
+import type { IDatabase } from '../lib/db.js';
 import type { TaskHistoryEntry } from '../types.js';
 
-export function createHistoryRoutes(db: JsonDb): Router {
+export function createHistoryRoutes(db: IDatabase): Router {
   const router = Router();
 
-  // GET /api/history — Query history with filters
+  // GET /api/history â€” Query history with filters
   router.get('/', (req, res) => {
     let entries = db.getAll<TaskHistoryEntry>('task_history');
 
@@ -30,7 +30,7 @@ export function createHistoryRoutes(db: JsonDb): Router {
     res.json({ entries, count: entries.length });
   });
 
-  // GET /api/history/task/:taskId — All history for a specific task
+  // GET /api/history/task/:taskId â€” All history for a specific task
   router.get('/task/:taskId', (req, res) => {
     let entries = db.query<TaskHistoryEntry>('task_history', e => e.task_id === req.params.taskId);
     entries.sort((a, b) => b.timestamp.localeCompare(a.timestamp));

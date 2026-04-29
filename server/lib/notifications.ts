@@ -1,24 +1,26 @@
 /**
- * notifications.ts — SDM Notification Engine (TASK_C12)
+ * notifications.ts â€” SDM Notification Engine (TASK_C12)
  *
  * Sends alerts via Email (Gmail API) and Slack (webhook).
- * Both channels are optional — gracefully degraded if not configured.
+ * Both channels are optional â€” gracefully degraded if not configured.
  */
 
 import { google } from 'googleapis';
+import { logger } from "./logger.js";
 
-// ─────────────────────────────────────────────────────────
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Types
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface NotificationResult {
   channel: 'email' | 'slack' | 'console';
   success: boolean;
   error?: string;
 }
 
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Email (Gmail API)
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function sendEmail(
   to: string,
   subject: string,
@@ -30,7 +32,7 @@ async function sendEmail(
   const fromAddress = process.env.GMAIL_FROM || 'notifications@rxfit.ai';
 
   if (!clientId || !clientSecret || !refreshToken) {
-    console.log(`[notify:email] Unconfigured — skipping email to ${to}: ${subject}`);
+    logger.info(`[notify:email] Unconfigured â€” skipping email to ${to}: ${subject}`);
     return { channel: 'email', success: false, error: 'Gmail credentials not configured' };
   }
 
@@ -61,18 +63,18 @@ async function sendEmail(
       requestBody: { raw: encoded },
     });
 
-    console.log(`[notify:email] ✓ Sent to ${to}: ${subject}`);
+    logger.info(`[notify:email] âœ“ Sent to ${to}: ${subject}`);
     return { channel: 'email', success: true };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[notify:email] ✗ Failed: ${msg}`);
+    logger.error(`[notify:email] âœ— Failed: ${msg}`);
     return { channel: 'email', success: false, error: msg };
   }
 }
 
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Slack (Incoming Webhook)
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function sendSlack(
   webhookUrl: string,
   message: string,
@@ -107,18 +109,18 @@ async function sendSlack(
       throw new Error(`Slack responded ${res.status}: ${await res.text()}`);
     }
 
-    console.log(`[notify:slack] ✓ Message sent`);
+    logger.info(`[notify:slack] âœ“ Message sent`);
     return { channel: 'slack', success: true };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[notify:slack] ✗ Failed: ${msg}`);
+    logger.error(`[notify:slack] âœ— Failed: ${msg}`);
     return { channel: 'slack', success: false, error: msg };
   }
 }
 
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Task Event Notifications
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface TaskEventPayload {
   task_id: string;
   title: string;
@@ -130,16 +132,16 @@ export interface TaskEventPayload {
 }
 
 const STATUS_EMOJI: Record<string, string> = {
-  created: '🆕',
-  completed: '✅',
-  blocked: '🚫',
-  delegated: '📬',
-  overdue: '⚠️',
+  created: 'ðŸ†•',
+  completed: 'âœ…',
+  blocked: 'ðŸš«',
+  delegated: 'ðŸ“¬',
+  overdue: 'âš ï¸',
 };
 
 export async function notifyTaskEvent(payload: TaskEventPayload): Promise<NotificationResult[]> {
   const results: NotificationResult[] = [];
-  const emoji = STATUS_EMOJI[payload.event_type] || '📋';
+  const emoji = STATUS_EMOJI[payload.event_type] || 'ðŸ“‹';
   const subject = `${emoji} SDM: Task ${payload.event_type}: ${payload.title}`;
   const bodyHtml = `
     <div style="font-family: Inter, sans-serif; max-width: 600px;">
@@ -151,7 +153,7 @@ export async function notifyTaskEvent(payload: TaskEventPayload): Promise<Notifi
         <tr><td style="padding: 4px 8px; color: #666;">Node</td><td style="padding: 4px 8px;">${payload.node_id || 'None'}</td></tr>
         <tr><td style="padding: 4px 8px; color: #666;">Actor</td><td style="padding: 4px 8px;">${payload.actor || 'System'}</td></tr>
       </table>
-      <p style="margin-top: 16px; color: #888; font-size: 12px;">SDM Headless Enterprise — ${new Date().toISOString()}</p>
+      <p style="margin-top: 16px; color: #888; font-size: 12px;">SDM Headless Enterprise â€” ${new Date().toISOString()}</p>
     </div>
   `;
 
@@ -165,28 +167,28 @@ export async function notifyTaskEvent(payload: TaskEventPayload): Promise<Notifi
   // Slack notification
   const slackWebhook = process.env.SLACK_WEBHOOK_URL;
   if (slackWebhook) {
-    const slackMsg = `${emoji} *${payload.title}* — ${payload.event_type.toUpperCase()}\n• Status: \`${payload.status || 'N/A'}\` | Assignee: ${payload.assignee || 'Unassigned'} | Node: \`${payload.node_id || 'none'}\``;
-    const slackResult = await sendSlack(slackWebhook, slackMsg, `Task ${payload.task_id} • ${new Date().toISOString()}`);
+    const slackMsg = `${emoji} *${payload.title}* â€” ${payload.event_type.toUpperCase()}\nâ€¢ Status: \`${payload.status || 'N/A'}\` | Assignee: ${payload.assignee || 'Unassigned'} | Node: \`${payload.node_id || 'none'}\``;
+    const slackResult = await sendSlack(slackWebhook, slackMsg, `Task ${payload.task_id} â€¢ ${new Date().toISOString()}`);
     results.push(slackResult);
   }
 
   // Always console log as fallback
   const consoleEntry: NotificationResult = { channel: 'console', success: true };
-  console.log(`[notify] ${emoji} Task event — ${payload.event_type}: ${payload.title} (${payload.task_id})`);
+  logger.info(`[notify] ${emoji} Task event â€” ${payload.event_type}: ${payload.title} (${payload.task_id})`);
   results.push(consoleEntry);
 
   return results;
 }
 
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // System Alert
-// ─────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function notifySystemAlert(
   level: 'info' | 'warning' | 'critical',
   message: string,
   context?: Record<string, unknown>
 ): Promise<void> {
-  const levelEmoji = { info: 'ℹ️', warning: '⚠️', critical: '🚨' }[level];
+  const levelEmoji = { info: 'â„¹ï¸', warning: 'âš ï¸', critical: 'ðŸš¨' }[level];
   const subject = `${levelEmoji} SDM Alert [${level.toUpperCase()}]: ${message}`;
 
   const notifyEmail = process.env.NOTIFY_EMAIL;
@@ -201,5 +203,5 @@ export async function notifySystemAlert(
     await sendSlack(slackWebhook, msg);
   }
 
-  console.log(`[notify:system] ${levelEmoji} [${level}] ${message}`);
+  logger.info(`[notify:system] ${levelEmoji} [${level}] ${message}`);
 }

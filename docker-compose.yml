@@ -15,6 +15,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=8090
+      - DB_DRIVER=pg
+      - DATABASE_URL=postgresql://cerberus:cerberus_sovereign_2026@db-node:5432/cerberus_brain
       - SDM_API_KEY=${SDM_API_KEY:-sdm-enterprise-key-2026}
       - SDM_API_URL=${SDM_API_URL:-https://ops.rxfit.ai}
       - GIT_AUTO_SYNC=${GIT_AUTO_SYNC:-false}
@@ -30,33 +32,19 @@ services:
       - sdm-enterprise-data:/app/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8090/api/health"]
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8090/api/v1/health | grep -q '\"status\":\"healthy\"' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
     networks:
-      - rxfit-mesh
+      - cerberus-mesh
     labels:
       - "com.rxfit.service=sdm-headless-enterprise"
       - "com.rxfit.tier=core"
 
-  # Cloudflare Tunnel — ops.rxfit.ai → http://sdm-enterprise:8090
-  sdm-cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: sdm-cloudflared
-    restart: unless-stopped
-    command: tunnel --config /etc/cloudflared/config.yml run
-    volumes:
-      - ./tunnel/config.yml:/etc/cloudflared/config.yml:ro
-      - ./tunnel/${TUNNEL_ID:-d41f8ac1-placeholder}.json:/etc/cloudflared/${TUNNEL_ID:-d41f8ac1-placeholder}.json:ro
-    depends_on:
-      sdm-enterprise:
-        condition: service_healthy
-    networks:
-      - rxfit-mesh
-    profiles:
-      - tunnel  # Only started with: docker compose --profile tunnel up -d
+  # T15: sdm-cloudflared removed — tunnel ingress consolidated into cerberus-gateway
+  # See docker-compose.orchestrator.yml for the unified gateway service.
 
 volumes:
   sdm-enterprise-data:
@@ -65,6 +53,6 @@ volumes:
     # external: true
 
 networks:
-  rxfit-mesh:
+  cerberus-mesh:
     external: true
-    name: rxfit-mesh
+    name: cerberus-mesh

@@ -37,7 +37,8 @@ import { useApiEdges } from './hooks/useApiEdges';
 import { useWebSocket } from './hooks/useWebSocket';
 import { variantColors } from './types';
 import type { NodeData, EnterpriseTask } from './types';
-import { Activity, Layers } from 'lucide-react';
+import { Activity, Layers, Settings } from 'lucide-react';
+import { SettingsPanel } from './components/SettingsPanel';
 import './index.css';
 
 const nodeTypes = {
@@ -50,6 +51,9 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     return params.get('embed') === 'true';
   }, []);
+
+  // ─── App UI state ──────────────────────────────────────────
+  const [showSettings, setShowSettings] = useState(false);
 
   // ─── API-backed state ──────────────────────────────────
   const { tasks, loading: tasksLoading, createTask, updateTask, deleteTask } = useApiTasks();
@@ -266,6 +270,15 @@ export default function App() {
               <Activity size={16} />
               Health
             </button>
+            <button
+              className="health-toggle-btn"
+              onClick={() => setShowSettings(true)}
+              title="Mesh Settings"
+              style={{ color: '#C4A24C', borderColor: 'rgba(196,162,76,0.2)' }}
+            >
+              <Settings size={16} />
+              Settings
+            </button>
             {unassignedTasks.length > 0 && (
               <button
                 className="sidebar-toggle-btn"
@@ -355,6 +368,17 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Settings Panel */}
+      <SettingsPanel
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        nodeCount={nodes.length}
+        taskCount={tasks.length}
+        wsConnected={wsConnected}
+        showInbox={showSidebar}
+        onToggleInbox={() => setShowSidebar(v => !v)}
+      />
 
       <style>{`
         .loading-badge {

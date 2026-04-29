@@ -1,5 +1,5 @@
 /**
- * wssBroadcast.ts — WebSocket Broadcast Engine
+ * wssBroadcast.ts Ã¢â‚¬â€ WebSocket Broadcast Engine
  * WOLF-004: Max 50 connections. Heartbeat-based dead client cleanup.
  *
  * Real-time event broadcasting for the Source of Truth Mandate.
@@ -11,6 +11,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 import type { IncomingMessage } from 'node:http';
 import type { Server } from 'node:http';
 import type { WsEvent, WsEventType } from '../types.js';
+import { logger } from "./logger.js";
+
 
 const MAX_CONNECTIONS = 50;
 const HEARTBEAT_INTERVAL = 30000; // 30s
@@ -41,7 +43,7 @@ export class WssBroadcast {
       verifyClient: (info, callback) => {
         // WOLF-004: Connection cap
         if (this.clientCount >= MAX_CONNECTIONS) {
-          console.warn(`[wss] Rejected connection: max ${MAX_CONNECTIONS} reached`);
+          logger.warn(`[wss] Rejected connection: max ${MAX_CONNECTIONS} reached`);
           callback(false, 429, 'Too Many Connections');
           return;
         }
@@ -53,7 +55,7 @@ export class WssBroadcast {
         if (!this.apiKey || key === this.apiKey) {
           callback(true);
         } else {
-          console.warn(`[wss] Rejected connection: invalid API key`);
+          logger.warn(`[wss] Rejected connection: invalid API key`);
           callback(false, 401, 'Unauthorized');
         }
       },
@@ -65,7 +67,7 @@ export class WssBroadcast {
       extWs.clientId = `client-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       this.clientCount++;
 
-      console.log(`[wss] Client connected: ${extWs.clientId} (${this.clientCount} total)`);
+      logger.info(`[wss] Client connected: ${extWs.clientId} (${this.clientCount} total)`);
 
       // Send connected event with current timestamp
       this.sendTo(extWs, {
@@ -79,13 +81,32 @@ export class WssBroadcast {
         extWs.isAlive = true;
       });
 
+      // T11: Per-Client Rate Limiting (DOS Protection)
+      // Limit clients to 120 incoming frames (messages/pongs) per minute
+      let frameCount = 0;
+      let lastFrameReset = Date.now();
+
+      extWs.on('message', () => {
+        const now = Date.now();
+        if (now - lastFrameReset > 60000) {
+          frameCount = 0;
+          lastFrameReset = now;
+        }
+        frameCount++;
+        
+        if (frameCount > 120) {
+          logger.warn(`[wss] Rate limit exceeded by ${extWs.clientId} - terminating connection`);
+          extWs.terminate();
+        }
+      });
+
       extWs.on('close', () => {
         this.clientCount = Math.max(0, this.clientCount - 1);
-        console.log(`[wss] Client disconnected: ${extWs.clientId} (${this.clientCount} remaining)`);
+        logger.info(`[wss] Client disconnected: ${extWs.clientId} (${this.clientCount} remaining)`);
       });
 
       extWs.on('error', (err) => {
-        console.error(`[wss] Client error (${extWs.clientId}):`, err.message);
+        logger.error(err, `[wss] Client error (${extWs.clientId})`);
       });
     });
 
@@ -96,7 +117,7 @@ export class WssBroadcast {
       this.wss.clients.forEach((ws) => {
         const extWs = ws as ExtendedWs;
         if (!extWs.isAlive) {
-          console.log(`[wss] Terminating dead client: ${extWs.clientId}`);
+          logger.info(`[wss] Terminating dead client: ${extWs.clientId}`);
           this.clientCount = Math.max(0, this.clientCount - 1);
           return extWs.terminate();
         }
@@ -105,7 +126,7 @@ export class WssBroadcast {
       });
     }, HEARTBEAT_INTERVAL);
 
-    console.log(`[wss] WebSocket server attached on /ws (max ${MAX_CONNECTIONS} connections)`);
+    logger.info(`[wss] WebSocket server attached on /ws (max ${MAX_CONNECTIONS} connections)`);
   }
 
   /**
@@ -131,7 +152,7 @@ export class WssBroadcast {
     });
 
     if (sent > 0) {
-      console.log(`[wss] Broadcast ${type} to ${sent} clients`);
+      logger.info(`[wss] Broadcast ${type} to ${sent} clients`);
     }
   }
 
@@ -166,6 +187,6 @@ export class WssBroadcast {
       this.wss.close();
       this.wss = null;
     }
-    console.log('[wss] WebSocket server closed');
+    logger.info('[wss] WebSocket server closed');
   }
 }
